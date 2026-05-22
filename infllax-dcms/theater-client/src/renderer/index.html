@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infllax DCMS — Theater Client</title>
+  <style>
+    /* ═══════════════════════════════════════════
+       INFLLAX DCMS THEATER CLIENT — PLAYER UI
+       Stack: HTML5 + Vanilla JS (Electron renderer)
+       This is what plays on the theater screen
+    ═══════════════════════════════════════════ */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      overflow: hidden;
+      height: 100vh; width: 100vw;
+      cursor: none; /* Hide cursor on theater screen */
+    }
+
+    /* ── IDLE SCREEN (when no ad is playing) ── */
+    #idle-screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #04080f;
+      z-index: 1;
+    }
+
+    .logo {
+      font-size: 4rem; font-weight: 900;
+      background: linear-gradient(135deg, #ff6b1a, #00c2a8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px; letter-spacing: -3px;
+    }
+
+    .tagline { font-size: 1rem; color: #3d5570; letter-spacing: 4px; margin-bottom: 48px; }
+
+    .status-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 48px; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 32px;
+      background: rgba(255,255,255,0.04);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      z-index: 100;
+    }
+
+    .status-item { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #3d5570; font-family: monospace; letter-spacing: 1px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-dot.online  { background: #4ade80; animation: pulse 2s infinite; }
+    .status-dot.offline { background: #ff6b1a; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .schedule-preview {
+      display: flex; flex-direction: column; gap: 8px;
+      max-width: 500px; width: 100%;
+    }
+
+    .schedule-item {
+      display: flex; align-items: center; gap: 16px;
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 2px;
+    }
+
+    .schedule-time { font-family: monospace; font-size: 0.9rem; color: #00c2a8; width: 80px; }
+    .schedule-name { font-size: 0.9rem; color: #f5f0e8; flex: 1; }
+    .schedule-dur  { font-family: monospace; font-size: 0.75rem; color: #3d5570; }
+
+    /* ── VIDEO PLAYER ── */
+    #player-screen {
+      position: absolute; inset: 0;
+      display: none; /* Hidden until ad plays */
+      background: #000;
+      z-index: 10;
+    }
+
+    #ad-video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+
+    /* Watermark overlay (dynamic — invisible to audience) */
+    #watermark {
+      position: absolute;
+      font-family: monospace; font-size: 14px;
+      color: rgba(255,255,255,0.15);
+      pointer-events: none;
+      z-index: 20;
+      user-select: none;
+    }
+
+    /* Now Playing indicator */
+    #now-playing {
+      position: fixed; top: 20px; left: 20px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      background: rgba(255,107,26,0.15);
+      border: 1px solid rgba(255,107,26,0.3);
+      z-index: 30; display: none;
+    }
+
+    .np-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff6b1a; animation: pulse 1s infinite; }
+    .np-text { font-family: monospace; font-size: 0.7rem; letter-spacing: 1px; color: #ff6b1a; }
+
+    /* Next up countdown */
+    #next-up {
+      position: fixed; bottom: 60px; right: 32px;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.7);
+      font-size: 0.75rem; color: #7a90a8;
+      font-family: monospace;
+      z-index: 30; display: none;
+    }
+
+    .sync-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px; z-index: 50; display: none;
+    }
+    .sync-spinner {
+      width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.1);
+      border-top-color: #ff6b1a; border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ── IDLE SCREEN ── -->
+<div id="idle-screen">
+  <div class="logo">INFLLAX</div>
+  <div class="tagline">DIGITAL CINEMA MANAGEMENT SYSTEM</div>
+  <div class="schedule-preview" id="scheduleList">
+    <div class="schedule-item">
+      <span class="schedule-time">--:--</span>
+      <span class="schedule-name">Loading schedule...</span>
+      <span class="schedule-dur">--s</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── VIDEO PLAYER ── -->
+<div id="player-screen">
+  <video id="ad-video" autoplay muted playsinline>
+    <source src="" type="video/mp4" />
+  </video>
+  <div id="watermark"></div>
+  <div id="now-playing">
+    <span class="np-dot"></span>
+    <span class="np-text" id="npText">NOW PLAYING</span>
+  </div>
+  <div id="next-up" id="nextUpText">Next ad in: --</div>
+</div>
+
+<!-- ── SYNC OVERLAY ── -->
+<div class="sync-overlay" id="syncOverlay">
+  <div class="sync-spinner"></div>
+  <p style="font-family:monospace;font-size:0.8rem;color:#7a90a8;letter-spacing:2px">SYNCING PLAYLIST...</p>
+</div>
+
+<!-- ── STATUS BAR ── -->
+<div class="status-bar">
+  <div class="status-item">
+    <div class="status-dot" id="connDot"></div>
+    <span id="connStatus">Connecting...</span>
+  </div>
+  <div class="status-item">
+    <span id="clockDisplay">--:--:--</span>
+  </div>
+  <div class="status-item">
+    <span id="slotCount">0 slots today</span>
+  </div>
+  <div class="status-item">
+    INFLLAX DCMS v1.0
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// THEATER CLIENT — RENDERER PROCESS
+// Handles: schedule display, ad playback, timing
+// Communicates with main process via contextBridge
+// ═══════════════════════════════════════════════
+
+let playlist    = []
+let currentIdx  = -1
+let isPlaying   = false
+const theaterId = '' // Set from config via IPC
+
+// ── CLOCK ──
+setInterval(() => {
+  document.getElementById('clockDisplay').textContent =
+    new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+}, 1000)
+
+// ── LISTEN FOR IPC EVENTS FROM MAIN PROCESS ──
+if (window.electronAPI) {
+
+  // Playlist synced
+  window.electronAPI.onSyncComplete((data) => {
+    document.getElementById('syncOverlay').style.display = 'none'
+    playlist = data.playlist || []
+    renderSchedule()
+    document.getElementById('slotCount').textContent = `${playlist.length} slots today`
+  })
+
+  // Sync started
+  window.electronAPI.onSyncStart(() => {
+    document.getElementById('syncOverlay').style.display = 'flex'
+  })
+
+  // Offline mode
+  window.electronAPI.onSyncOffline((data) => {
+    document.getElementById('syncOverlay').style.display = 'none'
+    playlist = data.playlist || []
+    renderSchedule()
+  })
+
+  // Connection status
+  window.electronAPI.onHeartbeatStatus((data) => {
+    const dot = document.getElementById('connDot')
+    const txt = document.getElementById('connStatus')
+    if (data.online) {
+      dot.className = 'status-dot online'
+      txt.textContent = 'Connected to Infllax'
+    } else {
+      dot.className = 'status-dot offline'
+      txt.textContent = 'Offline — Using Cache'
+    }
+  })
+
+  // Schedule update from admin (real-time)
+  window.electronAPI.onScheduleUpdate(() => {
+    window.electronAPI.manualSync()
+  })
+
+  // Scheduler tick — check if any ad should play
+  window.electronAPI.onPlaybackCheck(({ now }) => {
+    checkAndPlay(now)
+  })
+}
+
+// ── RENDER SCHEDULE LIST ──
+function renderSchedule() {
+  const list = document.getElementById('scheduleList')
+  if (!playlist.length) {
+    list.innerHTML = '<div class="schedule-item"><span class="schedule-name" style="color:#3d5570">No ads scheduled for today</span></div>'
+    return
+  }
+  list.innerHTML = playlist.map(slot => `
+    <div class="schedule-item">
+      <span class="schedule-time">${slot.time_slot}</span>
+      <span class="schedule-name">${slot.campaign_name}</span>
+      <span class="schedule-dur">${slot.duration_sec}s</span>
+    </div>
+  `).join('')
+}
+
+// ── CHECK IF AD SHOULD PLAY NOW ──
+function checkAndPlay(nowStr) {
+  if (isPlaying || !playlist.length) return
+
+  const now       = new Date(nowStr)
+  const nowTime   = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+
+  for (let i = 0; i < playlist.length; i++) {
+    const slot = playlist[i]
+    if (slot.status === 'played') continue
+
+    const slotTime = slot.time_slot.slice(0, 5) // HH:MM
+    if (slotTime === nowTime) {
+      playAd(slot, i)
+      break
+    }
+  }
+}
+
+// ── PLAY AD ──
+function playAd(slot, idx) {
+  isPlaying    = true
+  currentIdx   = idx
+
+  const videoSrc = slot.local_path || slot.video_url
+  if (!videoSrc) { finishPlay(slot, false); return }
+
+  // Show player
+  document.getElementById('idle-screen').style.display  = 'none'
+  document.getElementById('player-screen').style.display = 'block'
+  document.getElementById('now-playing').style.display   = 'flex'
+  document.getElementById('npText').textContent          = slot.campaign_name.toUpperCase()
+
+  // Set video source
+  const video = document.getElementById('ad-video')
+  video.src   = videoSrc
+  video.muted = false // Theater = audio on
+  video.play().catch(() => {
+    // Fallback: muted autoplay if browser blocks
+    video.muted = true
+    video.play()
+  })
+
+  // Set watermark (theater ID — for compliance)
+  const wm = document.getElementById('watermark')
+  wm.textContent = `INFLLAX-${theaterId}-${Date.now()}`
+  wm.style.top   = `${20 + Math.random() * 60}%`
+  wm.style.left  = `${10 + Math.random() * 60}%`
+
+  // Mark as played in local list
+  playlist[idx].status = 'played'
+
+  // When video ends
+  video.onended = () => finishPlay(slot, true)
+  video.onerror = () => finishPlay(slot, false)
+
+  // Safety timeout
+  setTimeout(() => {
+    if (isPlaying && currentIdx === idx) finishPlay(slot, false)
+  }, (slot.duration_sec + 10) * 1000)
+}
+
+// ── FINISH PLAYBACK ──
+function finishPlay(slot, completed) {
+  isPlaying = false
+
+  // Hide player, show idle
+  document.getElementById('player-screen').style.display = 'none'
+  document.getElementById('idle-screen').style.display   = 'flex'
+  document.getElementById('now-playing').style.display   = 'none'
+
+  const video = document.getElementById('ad-video')
+  video.pause(); video.src = ''
+
+  // Report to main process → backend
+  if (window.electronAPI) {
+    window.electronAPI.reportPlayback({
+      schedule_id:  slot.schedule_id,
+      campaign_id:  slot.campaign_id,
+      duration_sec: slot.duration_sec,
+      played_at:    new Date().toISOString(),
+      completed,
+    })
+  }
+
+  renderSchedule()
+}
+
+// ── MANUAL SYNC BUTTON (hidden keyboard shortcut: Ctrl+S) ──
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 's' && window.electronAPI) {
+    window.electronAPI.manualSync()
+  }
+})
+
+// Init
+renderSchedule()
+</script>
+</body>
+</html>

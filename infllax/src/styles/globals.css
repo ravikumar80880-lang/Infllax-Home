@@ -1,0 +1,250 @@
+/* ═══════════════════════════════════════════════
+   INFLLAX GLOBAL STYLES
+   File: src/styles/globals.css
+   Stack: Tailwind CSS + Custom Properties
+═══════════════════════════════════════════════ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── GOOGLE FONTS ── */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* ── CSS CUSTOM PROPERTIES ── */
+:root {
+  /* Brand */
+  --saffron:  #ff6b1a;
+  --saffron2: #ff8c42;
+  --teal:     #00c2a8;
+  --teal2:    #00e5c8;
+
+  /* Backgrounds */
+  --ink:      #04080f;
+  --deep:     #070e1a;
+  --surface:  #0b1828;
+  --card:     #0f2035;
+  --cardhi:   #132540;
+
+  /* Text */
+  --ivory:    #f5f0e8;
+  --fog:      #7a90a8;
+  --dim:      #3d5570;
+
+  /* Borders */
+  --line:     rgba(255, 255, 255, 0.07);
+  --linebr:   rgba(255, 255, 255, 0.12);
+
+  /* Nav Height */
+  --nav-h:    72px;
+}
+
+/* ── BASE RESET ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  background-color: var(--ink);
+  color: var(--ivory);
+  font-family: var(--font-satoshi), 'Satoshi', sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── NOISE TEXTURE OVERLAY ── */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* ── CUSTOM SCROLLBAR ── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--ink); }
+::-webkit-scrollbar-thumb { background: var(--saffron); border-radius: 2px; }
+
+/* ── SELECTION ── */
+::selection {
+  background: rgba(255, 107, 26, 0.3);
+  color: var(--ivory);
+}
+
+/* ── TYPOGRAPHY UTILITIES ── */
+@layer utilities {
+  .text-gradient-brand {
+    background: linear-gradient(100deg, var(--saffron) 20%, var(--teal) 80%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-saffron {
+    background: linear-gradient(135deg, var(--saffron), var(--saffron2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .border-line {
+    border-color: var(--line);
+  }
+
+  .bg-card {
+    background-color: var(--card);
+  }
+
+  .bg-surface {
+    background-color: var(--surface);
+  }
+
+  /* Section eyebrow label */
+  .eyebrow {
+    @apply flex items-center gap-3 font-mono text-teal uppercase tracking-widest text-xs;
+  }
+  .eyebrow::before {
+    content: '';
+    display: block;
+    width: 28px;
+    height: 1px;
+    background: var(--teal);
+  }
+
+  /* Grid background */
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 72px 72px;
+  }
+}
+
+/* ── COMPONENT BASE STYLES ── */
+@layer components {
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center gap-2 font-body font-medium transition-all duration-200 cursor-pointer border-none;
+  }
+
+  .btn-primary {
+    @apply btn px-9 py-4 bg-saffron text-ink font-bold text-sm tracking-wide;
+  }
+  .btn-primary:hover {
+    background: var(--saffron2);
+    transform: translateY(-3px);
+    box-shadow: 0 16px 48px rgba(255,107,26,0.3);
+  }
+
+  .btn-outline {
+    @apply btn px-9 py-4 text-ivory text-sm border border-linebr;
+    background: rgba(255,255,255,0.04);
+  }
+  .btn-outline:hover {
+    border-color: rgba(255,255,255,0.3);
+    transform: translateY(-2px);
+  }
+
+  .btn-ghost {
+    @apply btn px-5 py-2 text-fog text-sm border;
+    border-color: var(--line);
+    background: transparent;
+  }
+  .btn-ghost:hover {
+    border-color: var(--linebr);
+    color: var(--ivory);
+  }
+
+  .btn-fill {
+    @apply btn px-6 py-2 text-ink text-sm font-bold;
+    background: var(--saffron);
+  }
+  .btn-fill:hover {
+    background: var(--saffron2);
+    transform: translateY(-1px);
+  }
+
+  /* Cards */
+  .glass-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    transition: border-color 0.3s, transform 0.3s;
+  }
+  .glass-card:hover {
+    border-color: var(--linebr);
+    transform: translateY(-4px);
+  }
+
+  /* Section Container */
+  .section-container {
+    @apply max-w-7xl mx-auto px-14;
+  }
+
+  @media (max-width: 1024px) {
+    .section-container { @apply px-7; }
+  }
+
+  @media (max-width: 640px) {
+    .section-container { @apply px-5; }
+  }
+}
+
+/* ── ANIMATION: TICKER ── */
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.animate-ticker { animation: ticker 35s linear infinite; }
+
+/* ── ANIMATION: BLINK DOT ── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+.animate-blink { animation: blink 1.8s ease-in-out infinite; }
+
+/* ── ANIMATION: ORBS ── */
+@keyframes drift1 {
+  from { transform: translate(0,0); }
+  to   { transform: translate(-60px, 40px); }
+}
+@keyframes drift2 {
+  from { transform: translate(0,0); }
+  to   { transform: translate(50px, -40px); }
+}
+.animate-drift-1 { animation: drift1 12s ease-in-out infinite alternate; }
+.animate-drift-2 { animation: drift2 15s ease-in-out infinite alternate; }
+
+/* ── ANIMATION: SCROLL PULSE ── */
+@keyframes scrollpulse {
+  0%, 100% { transform: scaleY(1); opacity: 1; }
+  50%       { transform: scaleY(0.6); opacity: 0.4; }
+}
+.animate-scroll-pulse { animation: scrollpulse 1.6s ease-in-out infinite; }
+
+/* ── ANIMATION: FLOAT ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-12px); }
+}
+.animate-float { animation: float 6s ease-in-out infinite; }
+
+/* ── FRAMER MOTION BASE ── */
+.motion-safe { will-change: transform, opacity; }
+
+/* ── RESPONSIVE NAV ── */
+@media (max-width: 1024px) {
+  .nav-desktop { display: none; }
+}
